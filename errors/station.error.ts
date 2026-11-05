@@ -6,3 +6,28 @@ export class StationNotFoundError extends AppError {
         this.name = "StationNotFoundError";
     }
 }
+
+export class InvalidStationTransitionError extends AppError {
+    constructor(from: string, to: string) {
+        super(
+            `Invalid station transition: ${from} → ${to}`,
+            "INVALID_STATION_TRANSITION",
+            409,
+        );
+        this.name = "InvalidStationTransitionError";
+    }
+}
+
+export class StationFuelRequiredError extends AppError {
+    constructor(message = "At least one fuel is required for activation") {
+        super(message, "STATION_FUEL_REQUIRED", 422);
+        this.name = "StationFuelRequiredError";
+    }
+}
+
+export class SelfApprovalError extends AppError {
+    constructor(message = "An admin cannot approve a station they created") {
+        super(message, "SELF_APPROVAL_FORBIDDEN", 403);
+        this.name = "SelfApprovalError";
+    }
+}

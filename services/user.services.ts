@@ -2,7 +2,19 @@ import { nanoid } from "nanoid";
 import { prisma } from "@/prisma/db";
 import { env } from "@/utils/env";
 import { DatabaseError } from "@/errors/db.error";
-import type { AppError } from "@/errors/base.error";
+import { AppError } from "@/errors/base.error";
+import { AuthorizationError } from "@/errors/auth.error";
+import {
+    AlreadyAdminError,
+    CannotDemoteSuperAdminError,
+    NotAdminError,
+    TargetUserNotFoundError,
+} from "@/errors/admin.error";
+import { publishNotificationInTransaction } from "@/notification/publish";
+import {
+    adminDemoted,
+    adminPromoted,
+} from "@/notification/definitions/admin";
 import type { AuthenticatedUser } from "@/access/types";
 import type { User } from "@/generated/prisma/client";
 
@@ -14,13 +26,10 @@ export interface KindeUserInput {
     picture: string | null;
 }
 
-/**
- * Upsert the DB row for the signed-in Kinde user.
- *
- * - New users get a generated publicId and default USER role.
- * - The SUPER_ADMIN_EMAIL user is promoted to ADMIN on sync.
- * - Admins are never demoted here; env changes only affect isSuperAdmin.
- */
+/* ========================================================================== */
+/*  Identity sync                                                             */
+/* ========================================================================== */
+
 export const syncKindeUserService = async (
     input: KindeUserInput,
 ): Promise<AuthenticatedUser | AppError> => {
@@ -76,6 +85,10 @@ export const syncKindeUserService = async (
     }
 };
 
+/* ========================================================================== */
+/*  Reads                                                                     */
+/* ========================================================================== */
+
 export const getUserByPublicIdService = async (
     publicId: string,
 ): Promise<User | null | AppError> => {
@@ -95,5 +108,147 @@ export const getUserByIdService = async (
     } catch (error) {
         console.error("user.services > getUserByIdService", error);
         return new DatabaseError("Failed to load user");
+    }
+};
+
+export const listAdminsService = async (): Promise<
+    AuthenticatedUser[] | AppError
+> => {
+    try {
+        const rows = await prisma.user.findMany({
+            where: { globalRole: "ADMIN" },
+            orderBy: { createdAt: "asc" },
+        });
+        return rows.map((r) => ({
+            ...r,
+            isSuperAdmin: r.email === env.SUPER_ADMIN_EMAIL,
+        }));
+    } catch (error) {
+        console.error("user.services > listAdminsService", error);
+        return new DatabaseError("Failed to list admins");
+    }
+};
+
+export const getUserAdminDetailService = async (
+    publicId: string,
+): Promise<AuthenticatedUser | null | AppError> => {
+    try {
+        const row = await prisma.user.findUnique({ where: { publicId } });
+        if (!row) return null;
+        return {
+            ...row,
+            isSuperAdmin: row.email === env.SUPER_ADMIN_EMAIL,
+        };
+    } catch (error) {
+        console.error("user.services > getUserAdminDetailService", error);
+        return new DatabaseError("Failed to load user");
+    }
+};
+
+/* ========================================================================== */
+/*  Admin management                                                          */
+/* ========================================================================== */
+
+const composeActorName = (user: AuthenticatedUser): string => {
+    const parts = [user.firstName, user.lastName].filter(
+        (p): p is string => typeof p === "string" && p.trim().length > 0,
+    );
+    if (parts.length > 0) return parts.join(" ").trim();
+    return user.email;
+};
+
+export const promoteAdminService = async (
+    actor: AuthenticatedUser,
+    targetPublicId: string,
+): Promise<AuthenticatedUser | AppError> => {
+    if (!actor.isSuperAdmin) {
+        return new AuthorizationError("Only the super admin can promote admins");
+    }
+
+    try {
+        return await prisma.$transaction(async (tx) => {
+            const target = await tx.user.findUnique({
+                where: { publicId: targetPublicId },
+            });
+            if (!target) return new TargetUserNotFoundError();
+            if (target.globalRole === "ADMIN") return new AlreadyAdminError();
+
+            const updated = await tx.user.update({
+                where: { id: target.id },
+                data: { globalRole: "ADMIN" },
+            });
+
+            await publishNotificationInTransaction(
+                tx,
+                adminPromoted,
+                {
+                    recipientPublicId: target.publicId,
+                    actorName: composeActorName(actor),
+                },
+                {
+                    stationId: null,
+                    affectedUserId: target.id,
+                    actorId: actor.id,
+                },
+            );
+
+            return {
+                ...updated,
+                isSuperAdmin: updated.email === env.SUPER_ADMIN_EMAIL,
+            };
+        });
+    } catch (error) {
+        console.error("user.services > promoteAdminService", error);
+        return new DatabaseError("Failed to promote admin");
+    }
+};
+
+export const demoteAdminService = async (
+    actor: AuthenticatedUser,
+    targetPublicId: string,
+): Promise<AuthenticatedUser | AppError> => {
+    if (!actor.isSuperAdmin) {
+        return new AuthorizationError("Only the super admin can demote admins");
+    }
+
+    try {
+        return await prisma.$transaction(async (tx) => {
+            const target = await tx.user.findUnique({
+                where: { publicId: targetPublicId },
+            });
+            if (!target) return new TargetUserNotFoundError();
+
+            // Env super admin is protected — refuse even if the DB row is
+            // inconsistent. Changing SUPER_ADMIN_EMAIL is the only way.
+            if (target.email === env.SUPER_ADMIN_EMAIL) {
+                return new CannotDemoteSuperAdminError();
+            }
+
+            if (target.globalRole !== "ADMIN") return new NotAdminError();
+
+            const updated = await tx.user.update({
+                where: { id: target.id },
+                data: { globalRole: "USER" },
+            });
+
+            await publishNotificationInTransaction(
+                tx,
+                adminDemoted,
+                {
+                    recipientPublicId: target.publicId,
+                    actorName: composeActorName(actor),
+                },
+                {
+                    stationId: null,
+                    affectedUserId: target.id,
+                    actorId: actor.id,
+                },
+            );
+
+            return { ...updated, isSuperAdmin: false };
+        });
+    } catch (error) {
+        console.error("user.services > demoteAdminService", error);
+        return new DatabaseError("Failed to demote admin");
     }
 };

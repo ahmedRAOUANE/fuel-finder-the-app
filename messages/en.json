@@ -3,5 +3,31 @@
         "appName": "Fuel Finder",
         "search": "Search",
         "loading": "Loading..."
+    },
+    "notifications": {
+        "STATION_APPROVED": {
+            "title": "Your station was approved",
+            "body": "\"{stationName}\" has been approved and is now live."
+        },
+        "STATION_REJECTED": {
+            "title": "Your station request was rejected",
+            "body": "The request for \"{stationName}\" was rejected. Reason: {reason}"
+        },
+        "STATION_SUSPENDED": {
+            "title": "Your station was suspended",
+            "body": "\"{stationName}\" has been suspended."
+        },
+        "STATION_REACTIVATED": {
+            "title": "Your station was reactivated",
+            "body": "\"{stationName}\" has been reactivated."
+        },
+        "ADMIN_PROMOTED": {
+            "title": "You were promoted to admin",
+            "body": "{actorName} promoted you to admin."
+        },
+        "ADMIN_DEMOTED": {
+            "title": "Your admin access was removed",
+            "body": "{actorName} removed your admin access."
+        }
     }
 }

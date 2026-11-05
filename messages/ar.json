@@ -3,5 +3,31 @@
         "appName": "وقودي",
         "search": "بحث",
         "loading": "جارٍ التحميل..."
+    },
+    "notifications": {
+        "STATION_APPROVED": {
+            "title": "تمت الموافقة على محطتك",
+            "body": "تمت الموافقة على محطة \"{stationName}\" وأصبحت نشطة."
+        },
+        "STATION_REJECTED": {
+            "title": "تم رفض طلب محطتك",
+            "body": "تم رفض طلب محطة \"{stationName}\". السبب: {reason}"
+        },
+        "STATION_SUSPENDED": {
+            "title": "تم تعليق محطتك",
+            "body": "تم تعليق محطة \"{stationName}\" مؤقتاً."
+        },
+        "STATION_REACTIVATED": {
+            "title": "تمت إعادة تفعيل محطتك",
+            "body": "تمت إعادة تفعيل محطة \"{stationName}\"."
+        },
+        "ADMIN_PROMOTED": {
+            "title": "تمت ترقيتك إلى مشرف",
+            "body": "قام {actorName} بترقيتك إلى مشرف."
+        },
+        "ADMIN_DEMOTED": {
+            "title": "تمت إزالة صلاحيات الإشراف",
+            "body": "قام {actorName} بإزالة صلاحيات الإشراف عنك."
+        }
     }
 }

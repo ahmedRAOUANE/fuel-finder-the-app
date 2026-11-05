@@ -1,8 +1,354 @@
+// Fuel Finder — MVP schema (Prisma 7)
+// Datasource URL lives in prisma7.config.ts, not here.
+
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
   output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+/* ========================================================================== */
+/*  Enums                                                                     */
+/* ========================================================================== */
+
+enum GlobalRole {
+  USER
+  ADMIN
+}
+
+enum StationStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  SUSPENDED
+}
+
+enum StationRole {
+  OWNER
+  MANAGER
+  STAFF
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum FuelUnit {
+  LITER
+}
+
+enum FuelAvailability {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum ReportType {
+  INCORRECT_PRICE
+  WRONG_LOCATION
+  CLOSED_OR_NONEXISTENT
+  INCORRECT_INFO
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+/* ========================================================================== */
+/*  Identity                                                                  */
+/* ========================================================================== */
+
+model User {
+  id         String  @id @default(cuid())
+  publicId   String  @unique
+  kindeId    String  @unique
+  email      String  @unique
+  firstName  String?
+  lastName   String?
+  avatarUrl  String?
+  locale     String?
+
+  globalRole GlobalRole @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stationsRequested Station[]             @relation("StationRequester")
+  stationsOwned     Station[]             @relation("StationOwner")
+  memberships       StationMembership[]
+  invitationsSent   StationInvitation[]   @relation("InvitationInviter")
+  reports           Report[]
+  notifications     Notification[]
+  statusHistoryAsActor StationStatusHistory[] @relation("StatusHistoryActor")
+
+  @@index([globalRole])
+}
+
+/* ========================================================================== */
+/*  Station                                                                   */
+/* ========================================================================== */
+
+model Station {
+  id          String  @id @default(cuid())
+  publicId    String  @unique
+  name        String
+  description String?
+  phone       String?
+  photoKey    String?
+
+  address   String
+  latitude  Decimal @db.Decimal(9, 6)
+  longitude Decimal @db.Decimal(9, 6)
+
+  status StationStatus @default(PENDING)
+
+  requesterId String
+  requester   User   @relation("StationRequester", fields: [requesterId], references: [id])
+
+  ownerId String?
+  owner   User?   @relation("StationOwner", fields: [ownerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  statusHistory StationStatusHistory[]
+  memberships   StationMembership[]
+  invitations   StationInvitation[]
+  fuels         StationFuel[]
+  services      StationService[]
+  openingHours  OpeningHours[]
+  reports       Report[]
+  notifications Notification[]
+
+  @@index([status])
+  @@index([latitude, longitude])
+}
+
+model StationStatusHistory {
+  id String @id @default(cuid())
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  fromStatus StationStatus?
+  toStatus   StationStatus
+
+  reason  String?
+  actorId String?
+  actor   User?   @relation("StatusHistoryActor", fields: [actorId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([stationId, createdAt])
+}
+
+/* ========================================================================== */
+/*  Team / Membership                                                         */
+/* ========================================================================== */
+
+model StationMembership {
+  id String @id @default(cuid())
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  role   StationRole
+  active Boolean     @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, stationId])
+  @@index([stationId, role, active])
+}
+
+model StationInvitation {
+  id String @id @default(cuid())
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  inviterId String
+  inviter   User   @relation("InvitationInviter", fields: [inviterId], references: [id])
+
+  inviteePublicId String
+
+  status InvitationStatus @default(PENDING)
+
+  expiresAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([inviteePublicId, status])
+  @@index([stationId, status])
+}
+
+/* ========================================================================== */
+/*  Fuel catalog                                                              */
+/* ========================================================================== */
+
+model FuelCatalog {
+  id   String   @id @default(cuid())
+  code String   @unique
+  name String
+  unit FuelUnit @default(LITER)
+
+  stationFuels StationFuel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StationFuel {
+  id String @id @default(cuid())
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  fuelCatalogId String
+  fuelCatalog   FuelCatalog @relation(fields: [fuelCatalogId], references: [id])
+
+  displayName String
+
+  priceDZD Decimal @db.Decimal(10, 2)
+
+  availability FuelAvailability @default(AVAILABLE)
+
+  lastUpdatedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stationId, fuelCatalogId])
+  @@index([stationId, availability])
+}
+
+/* ========================================================================== */
+/*  Service catalog                                                           */
+/* ========================================================================== */
+
+model ServiceCatalog {
+  id      String @id @default(cuid())
+  code    String @unique
+  name    String
+  iconKey String
+
+  stationServices StationService[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StationService {
+  id String @id @default(cuid())
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  serviceCatalogId String
+  serviceCatalog   ServiceCatalog @relation(fields: [serviceCatalogId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([stationId, serviceCatalogId])
+  @@index([stationId])
+}
+
+/* ========================================================================== */
+/*  Opening hours                                                             */
+/* ========================================================================== */
+
+model OpeningHours {
+  id String @id @default(cuid())
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  dayOfWeek DayOfWeek
+
+  isClosed Boolean @default(false)
+
+  openTime  String? @db.VarChar(5)
+  closeTime String? @db.VarChar(5)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stationId, dayOfWeek])
+  @@index([stationId])
+}
+
+/* ========================================================================== */
+/*  Reports                                                                   */
+/* ========================================================================== */
+
+model Report {
+  id String @id @default(cuid())
+
+  stationId String
+  station   Station @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  reporterId String
+  reporter   User   @relation(fields: [reporterId], references: [id])
+
+  type  ReportType
+  notes String
+
+  status ReportStatus @default(OPEN)
+
+  adminNote String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stationId, status])
+  @@index([status, createdAt])
+}
+
+/* ========================================================================== */
+/*  Notifications                                                             */
+/* ========================================================================== */
+
+model Notification {
+  id String @id @default(cuid())
+
+  recipientId String
+  recipient   User   @relation(fields: [recipientId], references: [id], onDelete: Cascade)
+
+  stationId String?
+  station   Station? @relation(fields: [stationId], references: [id], onDelete: Cascade)
+
+  type    String
+  payload Json
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
+  @@index([stationId])
 }

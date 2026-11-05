@@ -1,3 +1,13 @@
 allowBuilds:
-  sharp: false
-  unrs-resolver: false
+  '@parcel/watcher': true
+  '@prisma/engines': true
+  '@swc/core': true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@aws-sdk/credential-provider-http@3.972.83'
+  - '@aws-sdk/credential-provider-ini@3.973.26'
+  - '@aws-sdk/credential-provider-sso@3.973.25'
+  - '@aws-sdk/nested-clients@3.998.0'

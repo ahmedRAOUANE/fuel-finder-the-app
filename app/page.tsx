@@ -1,36 +1,40 @@
-import { getTranslations } from "next-intl/server";
-import { setLocale } from "./actions";
-import { locales, localeNames, type Locale } from "@/i18n/config";
-import { LoginLink } from "@kinde-oss/kinde-auth-nextjs";
+import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/access/context";
+import { AppError } from "@/errors/base.error";
+import {
+  listFuelCatalogsForFilterService,
+  listServiceCatalogsForFilterService,
+  searchStationsService,
+} from "@/services/station.services";
+import { SearchShell } from "@/components/search/search-shell";
 
 export default async function HomePage() {
-  const t = await getTranslations("common");
+  const user = await getCurrentUser();
+  const userSafe =
+    user instanceof AppError
+      ? null
+      : { publicId: user.publicId, firstName: user.firstName };
+
+  const [initialResults, fuelCatalogs, serviceCatalogs] = await Promise.all([
+    searchStationsService({}),
+    listFuelCatalogsForFilterService(),
+    listServiceCatalogsForFilterService(),
+  ]);
+
+  if (
+    initialResults instanceof AppError ||
+    fuelCatalogs instanceof AppError ||
+    serviceCatalogs instanceof AppError
+  ) {
+    notFound();
+  }
 
   return (
-    <main className="p-margin-mobile md:p-margin-desktop">
-      <h1 className="text-hero-title text-primary">{t("appName")}</h1>
-      <p className="text-body-main text-on-surface-variant mt-4">
-        Phase 0 — Foundation verified.
-      </p>
-
-      <div>
-        <h1>login btn</h1>
-
-        <LoginLink>login</LoginLink>
-      </div>
-
-      <div className="mt-stack-lg flex gap-3">
-        {locales.map((loc: Locale) => (
-          <form key={loc} action={setLocale.bind(null, loc)}>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg border border-outline-variant hover:bg-surface-container-low transition-colors"
-            >
-              {localeNames[loc]}
-            </button>
-          </form>
-        ))}
-      </div>
-    </main>
+    <SearchShell
+      initialResults={initialResults}
+      fuelCatalogs={fuelCatalogs}
+      serviceCatalogs={serviceCatalogs}
+      user={userSafe}
+    />
   );
 }

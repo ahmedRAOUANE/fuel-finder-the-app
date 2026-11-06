@@ -2,6 +2,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { NextIntlClientProvider } from "next-intl";
 import { Cairo } from "next/font/google";
 import { localeDirection, type Locale } from "@/i18n/config";
+import "leaflet/dist/leaflet.css";
 import "./globals.css";
 
 const cairo = Cairo({

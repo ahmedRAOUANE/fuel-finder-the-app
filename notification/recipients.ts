@@ -53,3 +53,17 @@ export const resolveAffectedUser = async (
     _tx: Prisma.TransactionClient,
     ctx: NotificationPublishContext,
 ): Promise<readonly string[]> => [requireAffectedUserId(ctx)];
+
+/**
+ * Every user with `globalRole = ADMIN`. Used by platform-level events
+ * (reports) that are addressed to the admin team rather than a station.
+ */
+export const getPlatformAdmins = async (
+    tx: Prisma.TransactionClient,
+): Promise<readonly string[]> => {
+    const admins = await tx.user.findMany({
+        where: { globalRole: "ADMIN" },
+        select: { id: true },
+    });
+    return admins.map((a) => a.id);
+};

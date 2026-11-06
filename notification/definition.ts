@@ -34,9 +34,14 @@ export interface NotificationDefinition<
     ) => Promise<readonly string[]>;
     /**
      * Optional destination resolver. Called at render time on the stored
-     * payload, so route changes propagate without rewriting rows.
+     * payload. The optional `recipientPublicId` is passed when the URL
+     * needs to reflect the viewer (e.g. per-admin routes). Station-scoped
+     * destinations that only need the payload ignore it.
      */
-    readonly getDestination?: (payload: z.infer<TPayloadSchema>) => string;
+    readonly getDestination?: (
+        payload: z.infer<TPayloadSchema>,
+        recipientPublicId?: string,
+    ) => string;
 }
 
 export const defineNotification = <

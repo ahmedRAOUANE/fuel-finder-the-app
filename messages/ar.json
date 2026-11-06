@@ -40,6 +40,10 @@
         "INVITATION_REJECTED": {
             "title": "رفض {memberName} الدعوة",
             "body": "رفض {memberName} دعوتك للانضمام إلى \"{stationName}\"."
+        },
+        "REPORT_RECEIVED": {
+            "title": "تقرير جديد",
+            "body": "تم الإبلاغ عن مشكلة في \"{stationName}\"."
         }
     }
 }

@@ -7,6 +7,7 @@ import {
 } from "./definitions/station";
 import { adminPromoted, adminDemoted } from "./definitions/admin";
 import { invitationAccepted, invitationReceived, invitationRejected } from "./definitions/invitation";
+import { reportReceived } from "./definitions/report";
 
 /**
  * Core notification types owned by this MVP. Frozen so nothing mutates
@@ -22,6 +23,7 @@ export const CORE_NOTIFICATION_REGISTRY = Object.freeze({
     [invitationReceived.type]: invitationReceived,
     [invitationAccepted.type]: invitationAccepted,
     [invitationRejected.type]: invitationRejected,
+    [reportReceived.type]: reportReceived,
 } satisfies Record<string, NotificationDefinition>);
 
 export type CoreNotificationType = keyof typeof CORE_NOTIFICATION_REGISTRY;

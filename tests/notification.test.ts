@@ -138,7 +138,8 @@ describe("registry", () => {
     it("recognizes every registered type", () => {
         expect(isCoreNotificationType("STATION_APPROVED")).toBe(true);
         expect(isCoreNotificationType("ADMIN_PROMOTED")).toBe(true);
-        expect(isCoreNotificationType("REPORT_RECEIVED")).toBe(false);
+        expect(isCoreNotificationType("REPORT_RECEIVED")).toBe(true);
+        expect(isCoreNotificationType("NOT_A_REAL_TYPE")).toBe(false);
     });
 
     it("looks up a definition by type", () => {

@@ -40,6 +40,10 @@
         "INVITATION_REJECTED": {
             "title": "{memberName} declined the invitation",
             "body": "{memberName} declined your invitation to join \"{stationName}\"."
+        },
+        "REPORT_RECEIVED": {
+            "title": "New report",
+            "body": "A report was submitted for \"{stationName}\"."
         }
     }
 }

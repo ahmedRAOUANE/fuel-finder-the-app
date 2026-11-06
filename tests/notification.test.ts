@@ -155,6 +155,6 @@ describe("getDestination", () => {
             stationPublicId: "ST-ABC123",
             stationName: "x",
         });
-        expect(dest).toBe("/station/ST-ABC123/manage");
+        expect(dest).toBe("/station/ST-ABC123");
     });
 });

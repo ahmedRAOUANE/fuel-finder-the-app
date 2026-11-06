@@ -20,8 +20,12 @@ import type {
 
 const LOGIN_PATH = "/api/auth/login";
 const DENIED_PATH = "/dashboard";
-const stationStatusPath = (publicId: string) =>
-    `/station/${publicId}/manage/status`;
+// const stationStatusPath = (publicId: string) =>
+//     `/station/${publicId}/manage/status`;
+const stationStatusPath = (publicId: string, role: string) => {
+    const rolePath = role.toLowerCase(); // 'owner' | 'manager' | 'staff'
+    return `/station/${publicId}/${rolePath}/status`;
+};
 
 export const requireAuth = async (): Promise<AuthenticatedUser> => {
     const user = await getCurrentUser();
@@ -81,7 +85,8 @@ export const requireStationRole = async (
     }
     if (!hasStationRole(ctx.membership, roles)) redirect(DENIED_PATH);
     if (!canOperateOnStation(ctx.station.status, ctx.user.globalRole)) {
-        redirect(stationStatusPath(stationPublicId));
+        // redirect(stationStatusPath(stationPublicId));
+        redirect(stationStatusPath(stationPublicId, ctx.membership.role));
     }
     return ctx;
 };

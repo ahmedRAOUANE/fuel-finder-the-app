@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { setLocale } from "./actions";
 import { locales, localeNames, type Locale } from "@/i18n/config";
+import { LoginLink } from "@kinde-oss/kinde-auth-nextjs";
 
 export default async function HomePage() {
   const t = await getTranslations("common");
@@ -11,6 +12,12 @@ export default async function HomePage() {
       <p className="text-body-main text-on-surface-variant mt-4">
         Phase 0 — Foundation verified.
       </p>
+
+      <div>
+        <h1>login btn</h1>
+
+        <LoginLink>login</LoginLink>
+      </div>
 
       <div className="mt-stack-lg flex gap-3">
         {locales.map((loc: Locale) => (

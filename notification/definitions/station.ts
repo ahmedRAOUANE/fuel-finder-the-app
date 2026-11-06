@@ -32,7 +32,7 @@ export const stationApproved = defineNotification({
     payloadSchema: StationEventPayload,
     presentation: derivePresentation("STATION_APPROVED"),
     resolveRecipients: resolveAffectedUser,
-    getDestination: (p) => `/station/${p.stationPublicId}/manage`,
+    getDestination: (p) => `/station/${p.stationPublicId}`,
 });
 
 export const stationRejected = defineNotification({
@@ -40,23 +40,21 @@ export const stationRejected = defineNotification({
     payloadSchema: StationRejectionPayload,
     presentation: derivePresentation("STATION_REJECTED"),
     resolveRecipients: resolveAffectedUser,
-    getDestination: (p) => `/station/${p.stationPublicId}/manage/status`,
+    getDestination: (p) => `/station/${p.stationPublicId}/status`,
 });
 
 export const stationSuspended = defineNotification({
     type: "STATION_SUSPENDED",
     payloadSchema: StationEventPayload,
     presentation: derivePresentation("STATION_SUSPENDED"),
-    resolveRecipients: (tx, ctx) =>
-        getStationOwners(tx, requireStationId(ctx)),
-    getDestination: (p) => `/station/${p.stationPublicId}/manage/status`,
+    resolveRecipients: (tx, ctx) => getStationOwners(tx, requireStationId(ctx)),
+    getDestination: (p) => `/station/${p.stationPublicId}/status`,
 });
 
 export const stationReactivated = defineNotification({
     type: "STATION_REACTIVATED",
     payloadSchema: StationEventPayload,
     presentation: derivePresentation("STATION_REACTIVATED"),
-    resolveRecipients: (tx, ctx) =>
-        getStationOwners(tx, requireStationId(ctx)),
-    getDestination: (p) => `/station/${p.stationPublicId}/manage`,
+    resolveRecipients: (tx, ctx) => getStationOwners(tx, requireStationId(ctx)),
+    getDestination: (p) => `/station/${p.stationPublicId}`,
 });

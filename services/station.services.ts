@@ -22,6 +22,13 @@ import type {
     CreateStationInput,
     ResubmitStationInput,
 } from "@/schemas/station.schemas";
+import type {
+    StationFuel,
+    StationService,
+    OpeningHours,
+    FuelCatalog,
+    ServiceCatalog,
+} from "@/generated/prisma/client";
 
 const STATION_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const generateId = customAlphabet(STATION_ID_ALPHABET, 6);
@@ -488,5 +495,59 @@ export const reactivateStationService = async (
     } catch (error) {
         console.error("station.services > reactivateStationService", error);
         return new DatabaseError("Failed to reactivate station");
+    }
+};
+
+export type StationDetail = Station & {
+    fuels: (StationFuel & { fuelCatalog: FuelCatalog })[];
+    services: (StationService & { serviceCatalog: ServiceCatalog })[];
+    openingHours: OpeningHours[];
+};
+
+export const getStationDetailService = async (
+    publicId: string,
+): Promise<StationDetail | null | AppError> => {
+    try {
+        return await prisma.station.findUnique({
+            where: { publicId },
+            include: {
+                fuels: { include: { fuelCatalog: true } },
+                services: { include: { serviceCatalog: true } },
+                openingHours: { orderBy: { dayOfWeek: "asc" } },
+            },
+        });
+    } catch (error) {
+        console.error("station.services > getStationDetailService", error);
+        return new DatabaseError("Failed to load station");
+    }
+};
+
+export const getLatestStatusHistoryService = async (
+    stationId: string,
+): Promise<
+    | {
+        fromStatus: Station["status"] | null;
+        toStatus: Station["status"];
+        reason: string | null;
+        createdAt: Date;
+    }
+    | null
+    | AppError
+> => {
+    try {
+        const row = await prisma.stationStatusHistory.findFirst({
+            where: { stationId },
+            orderBy: { createdAt: "desc" },
+        });
+        if (!row) return null;
+        return {
+            fromStatus: row.fromStatus,
+            toStatus: row.toStatus,
+            reason: row.reason,
+            createdAt: row.createdAt,
+        };
+    } catch (error) {
+        console.error("station.services > getLatestStatusHistoryService", error);
+        return new DatabaseError("Failed to load history");
     }
 };

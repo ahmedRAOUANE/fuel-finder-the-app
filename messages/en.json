@@ -28,6 +28,18 @@
         "ADMIN_DEMOTED": {
             "title": "Your admin access was removed",
             "body": "{actorName} removed your admin access."
+        },
+        "INVITATION_RECEIVED": {
+            "title": "New team invitation",
+            "body": "{inviterName} invited you to join \"{stationName}\"."
+        },
+        "INVITATION_ACCEPTED": {
+            "title": "{memberName} accepted the invitation",
+            "body": "{memberName} accepted your invitation to join \"{stationName}\"."
+        },
+        "INVITATION_REJECTED": {
+            "title": "{memberName} declined the invitation",
+            "body": "{memberName} declined your invitation to join \"{stationName}\"."
         }
     }
 }

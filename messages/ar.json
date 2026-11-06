@@ -28,6 +28,18 @@
         "ADMIN_DEMOTED": {
             "title": "تمت إزالة صلاحيات الإشراف",
             "body": "قام {actorName} بإزالة صلاحيات الإشراف عنك."
+        },
+        "INVITATION_RECEIVED": {
+            "title": "دعوة جديدة للانضمام إلى فريق",
+            "body": "{inviterName} دعاك للانضمام إلى \"{stationName}\"."
+        },
+        "INVITATION_ACCEPTED": {
+            "title": "قبل {memberName} الدعوة",
+            "body": "قبل {memberName} دعوتك للانضمام إلى \"{stationName}\"."
+        },
+        "INVITATION_REJECTED": {
+            "title": "رفض {memberName} الدعوة",
+            "body": "رفض {memberName} دعوتك للانضمام إلى \"{stationName}\"."
         }
     }
 }

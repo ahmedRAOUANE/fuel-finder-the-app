@@ -17,6 +17,7 @@ import {
 } from "@/notification/definitions/admin";
 import type { AuthenticatedUser } from "@/access/types";
 import type { User } from "@/generated/prisma/client";
+import { composeUserName } from "@/utils/names";
 
 export interface KindeUserInput {
     id: string;
@@ -149,14 +150,6 @@ export const getUserAdminDetailService = async (
 /*  Admin management                                                          */
 /* ========================================================================== */
 
-const composeActorName = (user: AuthenticatedUser): string => {
-    const parts = [user.firstName, user.lastName].filter(
-        (p): p is string => typeof p === "string" && p.trim().length > 0,
-    );
-    if (parts.length > 0) return parts.join(" ").trim();
-    return user.email;
-};
-
 export const promoteAdminService = async (
     actor: AuthenticatedUser,
     targetPublicId: string,
@@ -183,7 +176,7 @@ export const promoteAdminService = async (
                 adminPromoted,
                 {
                     recipientPublicId: target.publicId,
-                    actorName: composeActorName(actor),
+                    actorName: composeUserName(actor),
                 },
                 {
                     stationId: null,
@@ -236,7 +229,7 @@ export const demoteAdminService = async (
                 adminDemoted,
                 {
                     recipientPublicId: target.publicId,
-                    actorName: composeActorName(actor),
+                    actorName: composeUserName(actor),
                 },
                 {
                     stationId: null,

@@ -254,6 +254,65 @@ describe("resubmitStationService", () => {
         );
         expect(result).toBeInstanceOf(AppError);
     });
+
+    it("moves SUSPENDED → PENDING for the original requester", async () => {
+        const owner = await createTestUser();
+        const admin = await createTestAdmin();
+        const fuel = await createTestFuelCatalog();
+        const station = await createTestStation(owner.id);
+        await prisma.stationFuel.create({
+            data: {
+                stationId: station.id,
+                fuelCatalogId: fuel.id,
+                displayName: "Diesel",
+                priceDZD: 45,
+            },
+        });
+        await approveStationService(admin, station.publicId);
+        await suspendStationService(admin, station.publicId, "Reported issue");
+
+        const updated = expectOk(
+            await resubmitStationService(owner, station.publicId, {
+                description: "Corrected info",
+            }),
+        );
+        expect(updated.status).toBe("PENDING");
+        expect(updated.description).toBe("Corrected info");
+        // ownerId is preserved across resubmit
+        expect(updated.ownerId).toBe(owner.id);
+
+        // Status history records SUSPENDED → PENDING
+        const history = await prisma.stationStatusHistory.findFirst({
+            where: {
+                stationId: station.id,
+                toStatus: "PENDING",
+                fromStatus: "SUSPENDED",
+            },
+        });
+        expect(history).not.toBeNull();
+        expect(history?.actorId).toBe(owner.id);
+    });
+
+    it("rejects resubmission of an ACTIVE station", async () => {
+        const owner = await createTestUser();
+        const admin = await createTestAdmin();
+        const fuel = await createTestFuelCatalog();
+        const station = await createTestStation(owner.id);
+        await prisma.stationFuel.create({
+            data: {
+                stationId: station.id,
+                fuelCatalogId: fuel.id,
+                displayName: "Diesel",
+                priceDZD: 45,
+            },
+        });
+        await approveStationService(admin, station.publicId);
+
+        expectErr(
+            await resubmitStationService(owner, station.publicId, {}),
+            InvalidStationTransitionError,
+        );
+    });
 });
 
 describe("suspendStationService", () => {

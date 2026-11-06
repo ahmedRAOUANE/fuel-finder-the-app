@@ -204,7 +204,14 @@ export const resubmitStationService = async (
             if (station.requesterId !== requester.id) {
                 return new AuthorizationError("Only the requester can resubmit");
             }
-            if (station.status !== "REJECTED") {
+            // Resubmit is allowed from REJECTED (rejected by admin) and
+            // SUSPENDED (owner-driven recovery). Both re-enter PENDING for
+            // fresh admin review. This is the only OWNER action available
+            // while a station is not ACTIVE.
+            if (
+                station.status !== "REJECTED" &&
+                station.status !== "SUSPENDED"
+            ) {
                 return new InvalidStationTransitionError(station.status, "PENDING");
             }
 
@@ -265,7 +272,7 @@ export const resubmitStationService = async (
             await tx.stationStatusHistory.create({
                 data: {
                     stationId: station.id,
-                    fromStatus: "REJECTED",
+                    fromStatus: station.status,
                     toStatus: "PENDING",
                     actorId: requester.id,
                 },

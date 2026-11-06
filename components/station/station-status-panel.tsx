@@ -105,7 +105,7 @@ export function StationStatusPanel({
                     {isOwner && (
                         <div className="flex gap-3 mt-stack-md">
                             <a
-                                href={`/station/${publicId}/owner`}
+                                href={`/station/${publicId}/resubmit`}
                                 className="px-4 py-2 rounded-lg bg-primary text-on-primary text-metadata hover:opacity-90"
                             >
                                 تصحيح وإعادة التقديم

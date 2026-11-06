@@ -34,6 +34,8 @@ import type {
     StationFuelInput,
     OpeningHoursInput,
 } from "@/schemas/station.schemas";
+import { SearchInput } from "@/schemas/search.schemas";
+import { haversineKm } from "@/utils/geo";
 
 const STATION_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const generateId = customAlphabet(STATION_ID_ALPHABET, 6);
@@ -710,5 +712,229 @@ export const setStationOpeningHoursService = async (
     } catch (error) {
         console.error("station.services > setStationOpeningHoursService", error);
         return new DatabaseError("Failed to update opening hours");
+    }
+};
+
+/* ========================================================================== */
+/*  Search / Discovery                                                        */
+/* ========================================================================== */
+
+export interface SearchResultFuel {
+    code: string;
+    displayName: string;
+    priceDZD: number;
+    availability: "AVAILABLE" | "UNAVAILABLE";
+}
+
+export interface SearchResultService {
+    code: string;
+    name: string;
+}
+
+export interface StationSearchResult {
+    publicId: string;
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    distanceKm: number | null;
+    fuels: SearchResultFuel[];
+    services: SearchResultService[];
+}
+
+export interface SearchResponse {
+    results: StationSearchResult[];
+    total: number;
+    userLocation: { lat: number; lng: number } | null;
+    sort: "recommended" | "nearest";
+}
+
+const SEARCH_CANDIDATE_LIMIT = 500;
+const DEFAULT_RESULT_LIMIT = 30;
+
+interface ScoringContext {
+    fuelCode?: string;
+    q?: string;
+    hasLocation: boolean;
+}
+
+const scoreResult = (
+    r: StationSearchResult,
+    ctx: ScoringContext,
+): number => {
+    let score = 0;
+
+    if (ctx.fuelCode) {
+        const matching = r.fuels.find((f) => f.code === ctx.fuelCode);
+        if (matching) {
+            score += 100;
+            if (matching.availability === "AVAILABLE") score += 50;
+        }
+    }
+
+    if (ctx.hasLocation && r.distanceKm !== null) {
+        // Closer stations score higher; caps at +50 when distance is 0.
+        score += 50 / (1 + r.distanceKm);
+    }
+
+    if (ctx.q) {
+        const lq = ctx.q.toLowerCase();
+        if (r.name.toLowerCase().includes(lq)) score += 20;
+        if (r.address.toLowerCase().includes(lq)) score += 5;
+    }
+
+    return score;
+};
+
+export const searchStationsService = async (
+    input: SearchInput,
+): Promise<SearchResponse | AppError> => {
+    try {
+        const userLocation =
+            input.lat !== undefined && input.lng !== undefined
+                ? { lat: input.lat, lng: input.lng }
+                : null;
+
+        const fuelFilter =
+            input.fuelCode || input.availableOnly
+                ? {
+                    fuels: {
+                        some: {
+                            ...(input.fuelCode
+                                ? { fuelCatalog: { code: input.fuelCode } }
+                                : {}),
+                            ...(input.availableOnly
+                                ? { availability: "AVAILABLE" as const }
+                                : {}),
+                        },
+                    },
+                }
+                : {};
+
+        const serviceFilter = input.serviceCode
+            ? {
+                services: {
+                    some: { serviceCatalog: { code: input.serviceCode } },
+                },
+            }
+            : {};
+
+        const qFilter = input.q
+            ? {
+                OR: [
+                    { name: { contains: input.q, mode: "insensitive" as const } },
+                    { address: { contains: input.q, mode: "insensitive" as const } },
+                ],
+            }
+            : {};
+
+        const rows = await prisma.station.findMany({
+            where: {
+                status: "ACTIVE",
+                ...qFilter,
+                ...fuelFilter,
+                ...serviceFilter,
+            },
+            include: {
+                fuels: { include: { fuelCatalog: true } },
+                services: { include: { serviceCatalog: true } },
+            },
+            orderBy: { id: "asc" },
+            take: SEARCH_CANDIDATE_LIMIT,
+        });
+
+        const results: StationSearchResult[] = rows.map((station) => {
+            const lat = station.latitude.toNumber();
+            const lng = station.longitude.toNumber();
+            const distanceKm = userLocation
+                ? haversineKm(userLocation.lat, userLocation.lng, lat, lng)
+                : null;
+
+            return {
+                publicId: station.publicId,
+                name: station.name,
+                address: station.address,
+                latitude: lat,
+                longitude: lng,
+                distanceKm,
+                fuels: station.fuels.map((f) => ({
+                    code: f.fuelCatalog.code,
+                    displayName: f.displayName,
+                    priceDZD: f.priceDZD.toNumber(),
+                    availability: f.availability,
+                })),
+                services: station.services.map((s) => ({
+                    code: s.serviceCatalog.code,
+                    name: s.serviceCatalog.name,
+                })),
+            };
+        });
+
+        const sort = input.sort ?? "recommended";
+        const limit = input.limit ?? DEFAULT_RESULT_LIMIT;
+
+        if (sort === "nearest" && userLocation) {
+            results.sort((a, b) => {
+                if (a.distanceKm === null) return 1;
+                if (b.distanceKm === null) return -1;
+                return a.distanceKm - b.distanceKm;
+            });
+        } else {
+            const ctx: ScoringContext = {
+                fuelCode: input.fuelCode,
+                q: input.q,
+                hasLocation: userLocation !== null,
+            };
+            const scored = results.map((r) => ({ r, score: scoreResult(r, ctx) }));
+            scored.sort((a, b) => b.score - a.score);
+            results.length = 0;
+            for (const { r } of scored) results.push(r);
+        }
+
+        return {
+            results: results.slice(0, limit),
+            total: results.length,
+            userLocation,
+            sort,
+        };
+    } catch (error) {
+        console.error("station.services > searchStationsService", error);
+        return new DatabaseError("Failed to search stations");
+    }
+};
+
+export const listFuelCatalogsForFilterService = async (): Promise<
+    { code: string; name: string }[] | AppError
+> => {
+    try {
+        const rows = await prisma.fuelCatalog.findMany({
+            orderBy: { name: "asc" },
+            select: { code: true, name: true },
+        });
+        return rows;
+    } catch (error) {
+        console.error(
+            "station.services > listFuelCatalogsForFilterService",
+            error,
+        );
+        return new DatabaseError("Failed to list fuels");
+    }
+};
+
+export const listServiceCatalogsForFilterService = async (): Promise<
+    { code: string; name: string }[] | AppError
+> => {
+    try {
+        const rows = await prisma.serviceCatalog.findMany({
+            orderBy: { name: "asc" },
+            select: { code: true, name: true },
+        });
+        return rows;
+    } catch (error) {
+        console.error(
+            "station.services > listServiceCatalogsForFilterService",
+            error,
+        );
+        return new DatabaseError("Failed to list services");
     }
 };

@@ -7,6 +7,7 @@ import type {
     Station,
     User,
 } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 
 export async function createTestUser(
     overrides: Partial<User> = {},
@@ -81,3 +82,5 @@ export async function createTestStation(
         },
     });
 }
+
+export const decimal = (n: number): Prisma.Decimal => new Prisma.Decimal(n);

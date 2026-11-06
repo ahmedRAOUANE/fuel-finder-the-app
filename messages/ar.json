@@ -45,5 +45,18 @@
             "title": "تقرير جديد",
             "body": "تم الإبلاغ عن مشكلة في \"{stationName}\"."
         }
+    },
+    "reportTypes": {
+        "INCORRECT_PRICE": "سعر خاطئ",
+        "WRONG_LOCATION": "موقع خاطئ",
+        "CLOSED_OR_NONEXISTENT": "مغلقة أو غير موجودة",
+        "INCORRECT_INFO": "معلومات خاطئة",
+        "OTHER": "أخرى"
+    },
+    "reportStatus": {
+        "OPEN": "مفتوح",
+        "REVIEWED": "قيد المراجعة",
+        "RESOLVED": "تم الحل",
+        "DISMISSED": "تم الرفض"
     }
 }

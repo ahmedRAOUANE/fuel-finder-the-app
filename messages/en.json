@@ -45,5 +45,18 @@
             "title": "New report",
             "body": "A report was submitted for \"{stationName}\"."
         }
+    },
+    "reportTypes": {
+        "INCORRECT_PRICE": "Incorrect price",
+        "WRONG_LOCATION": "Wrong location",
+        "CLOSED_OR_NONEXISTENT": "Closed or non-existent",
+        "INCORRECT_INFO": "Incorrect information",
+        "OTHER": "Other"
+    },
+    "reportStatus": {
+        "OPEN": "Open",
+        "REVIEWED": "Reviewed",
+        "RESOLVED": "Resolved",
+        "DISMISSED": "Dismissed"
     }
 }

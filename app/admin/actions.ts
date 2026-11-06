@@ -26,6 +26,8 @@ import {
     serviceResult,
     type ActionResult,
 } from "@/actions/result";
+import { resolveReportService } from "@/services/report.services";
+import { ResolveReportSchema } from "@/schemas/report.schemas";
 
 interface StationSummary {
     publicId: string;
@@ -211,6 +213,47 @@ export const demoteAdminAction = async (
     }
     try {
         return await demoteHandler(parsed.data.targetPublicId);
+    } catch (error) {
+        return catchToResult(error);
+    }
+};
+
+/* ========================================================================== */
+/*  Reports                                                                   */
+/* ========================================================================== */
+
+interface ReportSummary {
+    id: string;
+    status: string;
+}
+
+const resolveReportHandler = withGlobalRole(
+    ["ADMIN"],
+    async (
+        admin,
+        reportId: string,
+        input: unknown,
+    ): Promise<ActionResult<ReportSummary>> => {
+        const parsed = ResolveReportSchema.safeParse(input);
+        if (!parsed.success) {
+            return err(
+                "VALIDATION_ERROR",
+                parsed.error.issues[0]?.message ?? "Invalid input",
+            );
+        }
+        const result = await resolveReportService(admin, reportId, parsed.data);
+        return serviceResult(result, (report) =>
+            ok({ id: report.id, status: report.status }),
+        );
+    },
+);
+
+export const resolveReportAction = async (
+    reportId: string,
+    rawInput: unknown,
+): Promise<ActionResult<ReportSummary>> => {
+    try {
+        return await resolveReportHandler(reportId, rawInput);
     } catch (error) {
         return catchToResult(error);
     }

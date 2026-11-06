@@ -12,6 +12,11 @@ export function buildAdminNavItems(adminId: string): NavItem[] {
             href: `/admin/${adminId}/stations`,
             icon: "local_gas_station",
         },
+        {
+            label: "التقارير",
+            href: `/admin/${adminId}/reports`,
+            icon: "flag",
+        },
         { label: "الفريق", href: `/admin/${adminId}/team`, icon: "group" },
     ];
 }

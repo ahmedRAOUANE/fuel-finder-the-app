@@ -5,14 +5,14 @@ const TimeStringSchema = z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Time must be HH:mm");
 
-const StationFuelInputSchema = z.object({
+export const StationFuelInputSchema = z.object({
     fuelCatalogId: z.string().cuid(),
     displayName: z.string().trim().min(1).max(100),
     priceDZD: z.number().positive().max(100_000),
     availability: z.enum(["AVAILABLE", "UNAVAILABLE"]).default("AVAILABLE"),
 });
 
-const OpeningHoursInputSchema = z
+export const OpeningHoursInputSchema = z
     .object({
         dayOfWeek: DayOfWeekSchema,
         isClosed: z.boolean(),
@@ -61,3 +61,24 @@ export const RejectStationSchema = z.object({
 export const SuspendStationSchema = z.object({
     reason: z.string().trim().min(1).max(2_000),
 });
+
+export type StationFuelInput = z.infer<typeof StationFuelInputSchema>;
+export type OpeningHoursInput = z.infer<typeof OpeningHoursInputSchema>;
+
+export const SetStationFuelsSchema = z.object({
+    fuels: z.array(StationFuelInputSchema).min(1, "At least one fuel is required"),
+});
+
+export const SetStationServicesSchema = z.object({
+    serviceIds: z.array(z.string().cuid()),
+});
+
+export const SetStationOpeningHoursSchema = z.object({
+    openingHours: z.array(OpeningHoursInputSchema).max(7),
+});
+
+export type SetStationFuelsInput = z.infer<typeof SetStationFuelsSchema>;
+export type SetStationServicesInput = z.infer<typeof SetStationServicesSchema>;
+export type SetStationOpeningHoursInput = z.infer<
+    typeof SetStationOpeningHoursSchema
+>;

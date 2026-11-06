@@ -21,7 +21,7 @@
     "@prisma/client": "^7.10.1",
     "@tailwindcss/postcss": "^4.3.4",
     "leaflet": "^1.9.4",
-    "lucide": "^1.69.0",
+    "lucide-react": "^1.69.0",
     "media-pipeline": "^1.7.0",
     "nanoid": "^6.0.2",
     "next": "16.4.1",

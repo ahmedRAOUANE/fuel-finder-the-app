@@ -31,3 +31,14 @@ export class SelfApprovalError extends AppError {
         this.name = "SelfApprovalError";
     }
 }
+
+export class StationNotEditableError extends AppError {
+    constructor(status: string) {
+        super(
+            `Cannot edit a station in status ${status}. Only ACTIVE stations are editable.`,
+            "STATION_NOT_EDITABLE",
+            409,
+        );
+        this.name = "StationNotEditableError";
+    }
+}

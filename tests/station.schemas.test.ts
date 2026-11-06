@@ -4,6 +4,11 @@ import {
     RejectStationSchema,
     SuspendStationSchema,
 } from "@/schemas/station.schemas";
+import {
+    SetStationFuelsSchema,
+    SetStationOpeningHoursSchema,
+    SetStationServicesSchema,
+} from "@/schemas/station.schemas";
 
 const validFuel = {
     fuelCatalogId: "clx000000000000000000000",
@@ -94,5 +99,72 @@ describe("RejectStationSchema", () => {
 describe("SuspendStationSchema", () => {
     it("requires a non-empty reason", () => {
         expect(SuspendStationSchema.safeParse({ reason: "" }).success).toBe(false);
+    });
+});
+
+describe("SetStationFuelsSchema", () => {
+    it("requires at least one fuel", () => {
+        expect(SetStationFuelsSchema.safeParse({ fuels: [] }).success).toBe(false);
+        expect(
+            SetStationFuelsSchema.safeParse({ fuels: [validFuel] }).success,
+        ).toBe(true);
+    });
+});
+
+describe("SetStationServicesSchema", () => {
+    it("accepts an empty list", () => {
+        expect(SetStationServicesSchema.safeParse({ serviceIds: [] }).success).toBe(
+            true,
+        );
+    });
+
+    it("rejects invalid CUIDs", () => {
+        expect(
+            SetStationServicesSchema.safeParse({ serviceIds: ["not-a-cuid"] }).success,
+        ).toBe(false);
+    });
+});
+
+describe("SetStationOpeningHoursSchema", () => {
+    it("accepts open days with times", () => {
+        const result = SetStationOpeningHoursSchema.safeParse({
+            openingHours: [
+                {
+                    dayOfWeek: "MONDAY",
+                    isClosed: false,
+                    openTime: "08:00",
+                    closeTime: "20:00",
+                },
+            ],
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("accepts closed days with null times", () => {
+        const result = SetStationOpeningHoursSchema.safeParse({
+            openingHours: [
+                {
+                    dayOfWeek: "SUNDAY",
+                    isClosed: true,
+                    openTime: null,
+                    closeTime: null,
+                },
+            ],
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("rejects open days missing times", () => {
+        const result = SetStationOpeningHoursSchema.safeParse({
+            openingHours: [
+                {
+                    dayOfWeek: "MONDAY",
+                    isClosed: false,
+                    openTime: null,
+                    closeTime: null,
+                },
+            ],
+        });
+        expect(result.success).toBe(false);
     });
 });

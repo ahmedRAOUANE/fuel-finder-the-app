@@ -29,6 +29,11 @@ import type {
     FuelCatalog,
     ServiceCatalog,
 } from "@/generated/prisma/client";
+import { StationNotEditableError } from "@/errors/station.error";
+import type {
+    StationFuelInput,
+    OpeningHoursInput,
+} from "@/schemas/station.schemas";
 
 const STATION_ID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const generateId = customAlphabet(STATION_ID_ALPHABET, 6);
@@ -549,5 +554,161 @@ export const getLatestStatusHistoryService = async (
     } catch (error) {
         console.error("station.services > getLatestStatusHistoryService", error);
         return new DatabaseError("Failed to load history");
+    }
+};
+
+export const listFuelCatalogService = async (): Promise<
+    FuelCatalog[] | AppError
+> => {
+    try {
+        return await prisma.fuelCatalog.findMany({ orderBy: { name: "asc" } });
+    } catch (error) {
+        console.error("station.services > listFuelCatalogService", error);
+        return new DatabaseError("Failed to list fuels");
+    }
+};
+
+export const listServiceCatalogService = async (): Promise<
+    ServiceCatalog[] | AppError
+> => {
+    try {
+        return await prisma.serviceCatalog.findMany({ orderBy: { name: "asc" } });
+    } catch (error) {
+        console.error("station.services > listServiceCatalogService", error);
+        return new DatabaseError("Failed to list services");
+    }
+};
+
+/* ========================================================================== */
+/*  Bulk-replace management (ACTIVE stations, OWNER only)                     */
+/* ========================================================================== */
+
+const loadEditableStation = async (
+    tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+    publicId: string,
+): Promise<Station | AppError> => {
+    const station = await tx.station.findUnique({ where: { publicId } });
+    if (!station) return new StationNotFoundError();
+    if (station.status !== "ACTIVE") {
+        return new StationNotEditableError(station.status);
+    }
+    return station;
+};
+
+const assertOwnerMembership = async (
+    tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+    userId: string,
+    stationId: string,
+): Promise<AppError | null> => {
+    const membership = await tx.stationMembership.findUnique({
+        where: { userId_stationId: { userId, stationId } },
+    });
+    if (!membership || !membership.active || membership.role !== "OWNER") {
+        return new AuthorizationError("Only the station owner can perform this action");
+    }
+    return null;
+};
+
+export const setStationFuelsService = async (
+    owner: AuthenticatedUser,
+    stationPublicId: string,
+    fuels: StationFuelInput[],
+): Promise<StationFuel[] | AppError> => {
+    try {
+        return await prisma.$transaction(async (tx) => {
+            const station = await loadEditableStation(tx, stationPublicId);
+            if (station instanceof AppError) return station;
+
+            const membershipErr = await assertOwnerMembership(tx, owner.id, station.id);
+            if (membershipErr) return membershipErr;
+
+            await tx.stationFuel.deleteMany({ where: { stationId: station.id } });
+            await tx.stationFuel.createMany({
+                data: fuels.map((f) => ({
+                    stationId: station.id,
+                    fuelCatalogId: f.fuelCatalogId,
+                    displayName: f.displayName,
+                    priceDZD: f.priceDZD,
+                    availability: f.availability,
+                })),
+            });
+
+            return await tx.stationFuel.findMany({
+                where: { stationId: station.id },
+            });
+        });
+    } catch (error) {
+        console.error("station.services > setStationFuelsService", error);
+        return new DatabaseError("Failed to update fuels");
+    }
+};
+
+export const setStationServicesService = async (
+    owner: AuthenticatedUser,
+    stationPublicId: string,
+    serviceIds: string[],
+): Promise<StationService[] | AppError> => {
+    try {
+        return await prisma.$transaction(async (tx) => {
+            const station = await loadEditableStation(tx, stationPublicId);
+            if (station instanceof AppError) return station;
+
+            const membershipErr = await assertOwnerMembership(tx, owner.id, station.id);
+            if (membershipErr) return membershipErr;
+
+            await tx.stationService.deleteMany({ where: { stationId: station.id } });
+            if (serviceIds.length > 0) {
+                await tx.stationService.createMany({
+                    data: serviceIds.map((serviceCatalogId) => ({
+                        stationId: station.id,
+                        serviceCatalogId,
+                    })),
+                });
+            }
+
+            return await tx.stationService.findMany({
+                where: { stationId: station.id },
+            });
+        });
+    } catch (error) {
+        console.error("station.services > setStationServicesService", error);
+        return new DatabaseError("Failed to update services");
+    }
+};
+
+export const setStationOpeningHoursService = async (
+    owner: AuthenticatedUser,
+    stationPublicId: string,
+    hours: OpeningHoursInput[],
+): Promise<OpeningHours[] | AppError> => {
+    try {
+        return await prisma.$transaction(async (tx) => {
+            const station = await loadEditableStation(tx, stationPublicId);
+            if (station instanceof AppError) return station;
+
+            const membershipErr = await assertOwnerMembership(tx, owner.id, station.id);
+            if (membershipErr) return membershipErr;
+
+            await tx.openingHours.deleteMany({ where: { stationId: station.id } });
+            if (hours.length > 0) {
+                await tx.openingHours.createMany({
+                    data: hours.map((h) => ({
+                        stationId: station.id,
+                        dayOfWeek: h.dayOfWeek,
+                        isClosed: h.isClosed,
+                        openTime: h.openTime,
+                        closeTime: h.closeTime,
+                    })),
+                });
+            }
+
+            return await tx.openingHours.findMany({
+                where: { stationId: station.id },
+                orderBy: { dayOfWeek: "asc" },
+            });
+        });
+    } catch (error) {
+        console.error("station.services > setStationOpeningHoursService", error);
+        return new DatabaseError("Failed to update opening hours");
     }
 };
